@@ -3,57 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Number-Grid Generator</title>
+  <title>Respire project</title>
+  <!-- Google Font for scientific-paper style -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;700&display=swap" />
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Source Serif Pro', serif;
+      background-color: #fafafa;
+      color: #333;
       max-width: 800px;
       margin: 2rem auto;
       padding: 0 1rem;
-      line-height: 1.4;
+      line-height: 1.5;
     }
     h1 {
       text-align: center;
-      font-size: 1.5rem;
+      font-size: 1.6rem;
+      margin-bottom: 1.5rem;
     }
     .controls {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 1rem;
       align-items: center;
+      background-color: #e0e0e0;
+      padding: 1rem;
+      border-radius: 8px;
     }
-    .controls label,
-    .controls button {
+    .controls label {
       display: flex;
       flex-direction: column;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
+      color: #222;
     }
     .controls input[type=range],
     .controls input[type=number],
-    .controls select,
-    .controls button {
+    .controls select {
       margin-top: 0.3rem;
-      padding: 0.5rem;
+      padding: 0.4rem;
       font-size: 1rem;
       width: 100%;
       box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+    }
+    .button-row {
+      grid-column: span 2;
+      display: flex;
+      gap: 1rem;
     }
     .controls button {
-      cursor: pointer;
-      background-color: #007bff;
-      color: white;
+      padding: 0.6rem 1rem;
+      font-size: 1rem;
       border: none;
       border-radius: 4px;
+      cursor: pointer;
+      background-color: #666;
+      color: #fff;
+      flex: 1;
     }
     .controls button:active {
-      background-color: #0056b3;
+      background-color: #444;
     }
     #mainCanvas {
       width: 100%;
       height: auto;
       border: 1px solid #ccc;
-      margin-top: 1rem;
+      margin-top: 1.5rem;
       display: block;
+      background: #fff;
     }
     @media (max-width: 480px) {
       h1 {
@@ -62,58 +81,54 @@
       .controls {
         grid-template-columns: 1fr;
       }
-      .controls label,
-      .controls button {
-        font-size: 1rem;
+      .button-row {
+        grid-column: span 1;
+        flex-direction: column;
       }
     }
   </style>
 </head>
 <body>
-  <h1>Number-Grid Generator</h1>
+  <h1>Respire project</h1>
   <div class="controls">
     <label>
-      Pick an image:
+      Pick an image
       <input type="file" id="imgLoader" accept="image/*">
     </label>
-
     <label>
-      Cell size (% of min-dim):
+      Cell size (% of min-dim)
       <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
       <span id="cellSizeLabel">0.9%</span>
     </label>
-
     <label>
-      Jiggle (fraction of cell):
+      Jiggle (fraction of cell)
       <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5">
       <span id="jiggleLabel">0.50</span>
     </label>
-
     <label>
-      Font size (px):
+      Font size (px)
       <input type="number" id="fontSize" value="10" min="1">
     </label>
-
     <label>
-      Density:
+      Density
       <input type="number" id="density" value="1" min="1">
     </label>
-
     <label>
-      Color mode:
+      Color mode
       <select id="colorMode">
         <option>Grayscale</option>
         <option>BW</option>
       </select>
     </label>
-
     <label>
-      Resolution scale:
+      Resolution scale
       <input type="number" id="scale" value="1" min="1" step="0.5">
+      <small>2 for 2×, 3 for 3×, etc</small>
     </label>
-
-    <button id="generate">Generate Preview</button>
-    <button id="save">Save as PNG</button>
+    <div class="button-row">
+      <button id="generate">Generate Preview</button>
+      <button id="save">Save as PNG</button>
+    </div>
   </div>
 
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
@@ -206,7 +221,7 @@
     // Save as PNG
     btnSave.onclick = () => {
       const link = document.createElement('a');
-      link.download = 'number-grid.png';
+      link.download = 'respire.png';
       link.href = main.toDataURL('image/png');
       link.click();
     };
