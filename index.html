@@ -1,60 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Number-Grid Generator</title>
 
-  <!-- 1) PyScript runtime -->
+  <!-- PyScript runtime (must be here!) -->
   <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
   <script defer src="https://pyscript.net/latest/pyscript.js"></script>
 
   <style>
     body { font-family: sans-serif; padding: 1rem; }
-    #mainCanvas { width: 100%; border: 1px solid #ccc; display: block; margin-top: 1rem; }
+    #mainCanvas { width: 100%; border: 1px solid #ccc; margin-top: 1rem; }
   </style>
 </head>
 <body>
 
-  <!-- 2) Controls -->
+  <!-- Controls + Canvases -->
   <input type="file" id="imgLoader" accept="image/*" /><br/><br/>
-  <label>Cell size (% of min-dim):
-    <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9"/>
-  </label><br/>
-  <label>Jiggle (fraction of cell):
-    <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5"/>
-  </label><br/>
-  <label>Font size:
-    <input type="number" id="fontSize" value="10" style="width:4em;"/>
-  </label>
-  <label>Density:
-    <input type="number" id="density" value="1" min="1" style="width:3em;"/>
-  </label><br/>
+  <label>Cell size (%): <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9"/></label><br/>
+  <label>Jiggle: <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5"/></label><br/>
+  <label>Font size: <input type="number" id="fontSize" value="10" style="width:4em;"/></label>
+  <label>Density: <input type="number" id="density" value="1" min="1" style="width:3em;"/></label><br/>
   <label>Color mode:
-    <select id="colorMode">
-      <option>Grayscale</option>
-      <option>BW</option>
-    </select>
+    <select id="colorMode"><option>Grayscale</option><option>BW</option></select>
   </label>
   <button id="generate">Generate Preview</button>
 
-  <!-- hidden canvas for sampling pixels -->
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
-  <!-- visible canvas for result -->
   <canvas id="mainCanvas"></canvas>
 
-
-  <!-- 3) Your Python logic goes inside this tag -->
+  <!-- Your Python code, inside <py-script> -->
   <py-script>
 import js, random
 
 def avg_brightness(data, x, y, cell, w, h):
-    s = 0
-    cnt = 0
+    s = cnt = 0
     for yy in range(y, min(y+cell, h)):
         for xx in range(x, min(x+cell, w)):
             i = (yy*w + xx)*4
-            r, g, b = data[i], data[i+1], data[i+2]
-            s += (r + g + b) / 3
+            s += sum(data[i:i+3]) / 3
             cnt += 1
     return s/cnt if cnt else 0
 
@@ -64,59 +48,51 @@ def generate(ev):
         js.window.alert("Please choose an image first.")
         return
 
-    # read controls
-    cellPct   = float(js.document.getElementById("cellSize").value)
-    jigFrac   = float(js.document.getElementById("jiggle").value)
-    fontSize  = int(js.document.getElementById("fontSize").value)
-    density   = int(js.document.getElementById("density").value)
-    colorMode = js.document.getElementById("colorMode").value
+    cPct, jigFrac = map(float, [js.document.getElementById("cellSize").value,
+                                js.document.getElementById("jiggle").value])
+    fSize, density = map(int, [js.document.getElementById("fontSize").value,
+                               js.document.getElementById("density").value])
+    mode = js.document.getElementById("colorMode").value
 
-    # prepare canvases & contexts
-    hidden = js.document.getElementById("hiddenCanvas")
-    main   = js.document.getElementById("mainCanvas")
-    hc = hidden.getContext("2d")
-    mc = main.getContext("2d")
+    hC = js.document.getElementById("hiddenCanvas")
+    mC = js.document.getElementById("mainCanvas")
+    hc, mc = hC.getContext("2d"), mC.getContext("2d")
 
-    # load image via FileReader → Image
     fr = js.FileReader.new()
     def on_file(evt):
         img = js.window.Image.new()
         img.src = evt.target.result
-
-        def on_img(e2):
+        def on_img(e):
             w, h = img.width, img.height
-            hidden.width  = w; hidden.height = h
-            main.width    = w; main.height   = h
+            hC.width = w; hC.height = h
+            mC.width = w; mC.height = h
             hc.drawImage(img, 0, 0)
+            pixels = hc.getImageData(0,0,w,h).data.to_py()
 
-            arr = hc.getImageData(0,0,w,h).data.to_py()
-            cell = max(1, int((cellPct/100)*min(w,h)))
+            cell = max(1, int((cPct/100)*min(w,h)))
             jig  = jigFrac * cell
 
             mc.fillStyle = "white"
             mc.fillRect(0,0,w,h)
-            mc.font = f"{fontSize}px sans-serif"
+            mc.font = f"{fSize}px sans-serif"
             mc.textAlign = "center"
             mc.textBaseline = "middle"
 
             for yy in range(0, h, cell):
                 for xx in range(0, w, cell):
-                    m = avg_brightness(arr, xx, yy, cell, w, h)
-                    if colorMode=="BW" and m>128:
-                        continue
+                    m = avg_brightness(pixels, xx, yy, cell, w, h)
+                    if mode=="BW" and m>128: continue
                     mc.fillStyle = f"rgb({int(m)},{int(m)},{int(m)})"
                     for _ in range(density):
-                        dx = (random.random()*2 - 1)*jig
-                        dy = (random.random()*2 - 1)*jig
-                        digit = str(random.randint(1, 10))
-                        mc.fillText(digit, xx + cell/2 + dx, yy + cell/2 + dy)
-
+                        dx = (random.random()*2-1)*jig
+                        dy = (random.random()*2-1)*jig
+                        mc.fillText(str(random.randint(1,10)),
+                                    xx+cell/2+dx, yy+cell/2+dy)
         img.onload = on_img
 
     fr.onload = on_file
     fr.readAsDataURL(loader.files[0])
 
-# hook up the button
 js.document.getElementById("generate").addEventListener("click", generate)
   </py-script>
 
