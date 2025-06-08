@@ -12,6 +12,7 @@
     }
     label { display: block; margin: .5rem 0; }
     canvas { width: 100%; border: 1px solid #ccc; margin-top: 1rem; }
+    button { margin-right: 1rem; }
   </style>
 </head>
 <body>
@@ -24,7 +25,7 @@
   </label>
 
   <label>
-    Cell size (% of min-dim): 
+    Cell size (% of min-dim):
     <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
     <span id="cellSizeLabel">0.9%</span>
   </label>
@@ -53,11 +54,18 @@
     </select>
   </label>
 
+  <label>
+    Resolution scale:
+    <input type="number" id="scale" value="1" min="1" step="0.5" style="width:3em;">
+    <small>(2 for 2×, 3 for 3×, etc)</small>
+  </label>
+
   <button id="generate">Generate Preview</button>
+  <button id="save">Save as PNG</button>
 
   <!-- hidden canvas for pixel read -->
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
-  <!-- visible result -->
+  <!-- visible (CSS-scaled) result -->
   <canvas id="mainCanvas"></canvas>
 
   <script>
@@ -67,7 +75,9 @@
     const fontInput  = document.getElementById('fontSize');
     const densInput  = document.getElementById('density');
     const modeSelect = document.getElementById('colorMode');
-    const btn        = document.getElementById('generate');
+    const scaleInput = document.getElementById('scale');
+    const btnGen     = document.getElementById('generate');
+    const btnSave    = document.getElementById('save');
     const cellLabel  = document.getElementById('cellSizeLabel');
     const jigLabel   = document.getElementById('jiggleLabel');
     const hidden     = document.getElementById('hiddenCanvas');
@@ -75,18 +85,18 @@
     const hc         = hidden.getContext('2d');
     const mc         = main.getContext('2d');
 
-    // update labels
-    cellSlider.oninput = () => cellLabel.textContent = cellSlider.value + '%';
-    jigSlider .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
+    // update UI labels
+    cellSlider .oninput = () => cellLabel.textContent = cellSlider.value + '%';
+    jigSlider  .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
 
-    // compute avg brightness in a cell
+    // avg brightness in a block
     function avgBrightness(pixels, x, y, cell, w, h) {
       let sum = 0, count = 0;
       const rowLen = w * 4;
       for (let yy = y; yy < y + cell && yy < h; yy++) {
         let base = yy * rowLen;
         for (let xx = x; xx < x + cell && xx < w; xx++) {
-          const i = base + xx * 4;
+          const i = base + xx*4;
           sum += (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
           count++;
         }
@@ -94,10 +104,9 @@
       return count ? sum / count : 0;
     }
 
-    btn.onclick = () => {
+    btnGen.onclick = () => {
       if (!imgLoader.files.length) {
-        alert('Please choose an image first.');
-        return;
+        return alert('Please choose an image first.');
       }
       const file = imgLoader.files[0];
       const reader = new FileReader();
@@ -105,33 +114,39 @@
         const img = new Image();
         img.onload = () => {
           const w = img.width, h = img.height;
-          hidden.width = main.width = w;
-          hidden.height = main.height = h;
-          hc.drawImage(img, 0, 0, w, h);
+          const scale = Math.max(1, parseFloat(scaleInput.value) || 1);
 
-          const pixels = hc.getImageData(0,0,w,h).data;
-          const cellPct = parseFloat(cellSlider.value) / 100;
-          const cell    = Math.max(1, Math.floor(cellPct * Math.min(w,h)));
+          // set high-res buffer
+          hidden.width = main.width = w * scale;
+          hidden.height = main.height = h * scale;
+
+          // draw scaled image into hidden canvas
+          hc.drawImage(img, 0, 0, w * scale, h * scale);
+          const pixels = hc.getImageData(0,0,w*scale,h*scale).data;
+
+          const cellPct = parseFloat(cellSlider.value)/100;
+          const cell    = Math.max(1, Math.floor(cellPct * Math.min(w,h) * scale));
           const jig     = parseFloat(jigSlider.value) * cell;
-          const fSize   = parseInt(fontInput.value, 10);
+          const fSize   = parseInt(fontInput.value, 10) * scale;
           const density = parseInt(densInput.value, 10);
           const mode    = modeSelect.value;
 
+          // clear and style main canvas (CSS will downscale it to fit)
           mc.fillStyle = 'white';
-          mc.fillRect(0,0,w,h);
+          mc.fillRect(0,0,w*scale,h*scale);
           mc.font = `${fSize}px sans-serif`;
           mc.textAlign = 'center';
           mc.textBaseline = 'middle';
 
-          for (let y = 0; y < h; y += cell) {
-            for (let x = 0; x < w; x += cell) {
-              const m = avgBrightness(pixels, x, y, cell, w, h);
+          for (let y = 0; y < h*scale; y += cell) {
+            for (let x = 0; x < w*scale; x += cell) {
+              const m = avgBrightness(pixels, x, y, cell, w*scale, h*scale);
               if (mode === 'BW' && m > 128) continue;
               mc.fillStyle = `rgb(${m|0},${m|0},${m|0})`;
               for (let i=0; i<density; i++) {
                 const dx = (Math.random()*2 - 1) * jig;
                 const dy = (Math.random()*2 - 1) * jig;
-                const digit = String(Math.floor(Math.random()*10)+1);
+                const digit = String((Math.random()*10|0)+1);
                 mc.fillText(digit, x + cell/2 + dx, y + cell/2 + dy);
               }
             }
@@ -141,6 +156,15 @@
       };
       reader.readAsDataURL(file);
     };
+
+    btnSave.onclick = () => {
+      // download PNG at full buffer resolution
+      const link = document.createElement('a');
+      link.download = 'number-grid.png';
+      link.href = main.toDataURL('image/png');
+      link.click();
+    };
   </script>
+
 </body>
 </html>
