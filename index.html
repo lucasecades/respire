@@ -2,73 +2,125 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Respire</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Number-Grid Generator</title>
   <style>
     body {
       font-family: sans-serif;
       max-width: 800px;
       margin: 2rem auto;
+      padding: 0 1rem;
       line-height: 1.4;
     }
-    label { display: block; margin: .5rem 0; }
-    canvas { width: 100%; border: 1px solid #ccc; margin-top: 1rem; }
-    button { margin-right: 1rem; }
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      align-items: center;
+    }
+    .controls label,
+    .controls button {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+    }
+    .controls input[type=range],
+    .controls input[type=number],
+    .controls select,
+    .controls button {
+      margin-top: 0.3rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .controls button {
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    .controls button:active {
+      background-color: #0056b3;
+    }
+    #mainCanvas {
+      width: 100%;
+      height: auto;
+      border: 1px solid #ccc;
+      margin-top: 1rem;
+      display: block;
+    }
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.3rem;
+      }
+      .controls {
+        grid-template-columns: 1fr;
+      }
+      .controls label,
+      .controls button {
+        font-size: 1rem;
+      }
+    }
   </style>
 </head>
 <body>
+  <h1>Number-Grid Generator</h1>
+  <div class="controls">
+    <label>
+      Pick an image:
+      <input type="file" id="imgLoader" accept="image/*">
+    </label>
 
-  <h1>Respire</h1>
+    <label>
+      Cell size (% of min-dim):
+      <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
+      <span id="cellSizeLabel">0.9%</span>
+    </label>
 
-  <label>
-    Pick an image:
-    <input type="file" id="imgLoader" accept="image/*">
-  </label>
+    <label>
+      Jiggle (fraction of cell):
+      <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5">
+      <span id="jiggleLabel">0.50</span>
+    </label>
 
-  <label>
-    Cell size (% of min-dim):
-    <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
-    <span id="cellSizeLabel">0.9%</span>
-  </label>
+    <label>
+      Font size (px):
+      <input type="number" id="fontSize" value="10" min="1">
+    </label>
 
-  <label>
-    Jiggle (fraction of cell):
-    <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5">
-    <span id="jiggleLabel">0.50</span>
-  </label>
+    <label>
+      Density:
+      <input type="number" id="density" value="1" min="1">
+    </label>
 
-  <label>
-    Font size (px):
-    <input type="number" id="fontSize" value="10" style="width:4em;">
-  </label>
+    <label>
+      Color mode:
+      <select id="colorMode">
+        <option>Grayscale</option>
+        <option>BW</option>
+      </select>
+    </label>
 
-  <label>
-    Density:
-    <input type="number" id="density" value="1" min="1" style="width:3em;">
-  </label>
+    <label>
+      Resolution scale:
+      <input type="number" id="scale" value="1" min="1" step="0.5">
+    </label>
 
-  <label>
-    Color mode:
-    <select id="colorMode">
-      <option>Grayscale</option>
-      <option>BW</option>
-    </select>
-  </label>
+    <button id="generate">Generate Preview</button>
+    <button id="save">Save as PNG</button>
+  </div>
 
-  <label>
-    Resolution scale:
-    <input type="number" id="scale" value="1" min="1" step="0.5" style="width:3em;">
-    <small>(2 for 2×, 3 for 3×, etc)</small>
-  </label>
-
-  <button id="generate">Generate Preview</button>
-  <button id="save">Save as PNG</button>
-
-  <!-- hidden canvas for pixel read -->
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
-  <!-- visible (CSS-scaled) result -->
   <canvas id="mainCanvas"></canvas>
 
   <script>
+    // Element references
     const imgLoader  = document.getElementById('imgLoader');
     const cellSlider = document.getElementById('cellSize');
     const jigSlider  = document.getElementById('jiggle');
@@ -85,18 +137,18 @@
     const hc         = hidden.getContext('2d');
     const mc         = main.getContext('2d');
 
-    // update UI labels
-    cellSlider .oninput = () => cellLabel.textContent = cellSlider.value + '%';
-    jigSlider  .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
+    // Update labels
+    cellSlider.oninput = () => cellLabel.textContent = cellSlider.value + '%';
+    jigSlider .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
 
-    // avg brightness in a block
+    // Average brightness
     function avgBrightness(pixels, x, y, cell, w, h) {
       let sum = 0, count = 0;
       const rowLen = w * 4;
       for (let yy = y; yy < y + cell && yy < h; yy++) {
         let base = yy * rowLen;
         for (let xx = x; xx < x + cell && xx < w; xx++) {
-          const i = base + xx*4;
+          const i = base + xx * 4;
           sum += (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
           count++;
         }
@@ -104,11 +156,9 @@
       return count ? sum / count : 0;
     }
 
+    // Generate preview
     btnGen.onclick = () => {
-      if (!imgLoader.files.length) {
-        return alert('Please choose an image first.');
-      }
-      const file = imgLoader.files[0];
+      if (!imgLoader.files.length) return alert('Choose an image first.');
       const reader = new FileReader();
       reader.onload = e => {
         const img = new Image();
@@ -116,55 +166,50 @@
           const w = img.width, h = img.height;
           const scale = Math.max(1, parseFloat(scaleInput.value) || 1);
 
-          // set high-res buffer
           hidden.width = main.width = w * scale;
           hidden.height = main.height = h * scale;
-
-          // draw scaled image into hidden canvas
           hc.drawImage(img, 0, 0, w * scale, h * scale);
           const pixels = hc.getImageData(0,0,w*scale,h*scale).data;
 
-          const cellPct = parseFloat(cellSlider.value)/100;
+          const cellPct = parseFloat(cellSlider.value) / 100;
           const cell    = Math.max(1, Math.floor(cellPct * Math.min(w,h) * scale));
           const jig     = parseFloat(jigSlider.value) * cell;
           const fSize   = parseInt(fontInput.value, 10) * scale;
           const density = parseInt(densInput.value, 10);
           const mode    = modeSelect.value;
 
-          // clear and style main canvas (CSS will downscale it to fit)
           mc.fillStyle = 'white';
           mc.fillRect(0,0,w*scale,h*scale);
           mc.font = `${fSize}px sans-serif`;
           mc.textAlign = 'center';
           mc.textBaseline = 'middle';
 
-          for (let y = 0; y < h*scale; y += cell) {
-            for (let x = 0; x < w*scale; x += cell) {
-              const m = avgBrightness(pixels, x, y, cell, w*scale, h*scale);
+          for (let yy = 0; yy < h*scale; yy += cell) {
+            for (let xx = 0; xx < w*scale; xx += cell) {
+              const m = avgBrightness(pixels, xx, yy, cell, w*scale, h*scale);
               if (mode === 'BW' && m > 128) continue;
               mc.fillStyle = `rgb(${m|0},${m|0},${m|0})`;
-              for (let i=0; i<density; i++) {
+              for (let i = 0; i < density; i++) {
                 const dx = (Math.random()*2 - 1) * jig;
                 const dy = (Math.random()*2 - 1) * jig;
                 const digit = String((Math.random()*10|0)+1);
-                mc.fillText(digit, x + cell/2 + dx, y + cell/2 + dy);
+                mc.fillText(digit, xx + cell/2 + dx, yy + cell/2 + dy);
               }
             }
           }
         };
         img.src = e.target.result;
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(imgLoader.files[0]);
     };
 
+    // Save as PNG
     btnSave.onclick = () => {
-      // download PNG at full buffer resolution
       const link = document.createElement('a');
-      link.download = 'respire.png';
+      link.download = 'number-grid.png';
       link.href = main.toDataURL('image/png');
       link.click();
     };
   </script>
-
 </body>
 </html>
