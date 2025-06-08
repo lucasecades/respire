@@ -103,6 +103,7 @@
       grid-column: span 2;
       display: flex;
       gap: 1rem;
+      align-items: stretch;
     }
     .controls button {
       flex: 1;
@@ -115,6 +116,9 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .controls button:active {
       background-color: #222;
@@ -196,7 +200,6 @@
   <canvas id="mainCanvas"></canvas>
 
   <script>
-    // Element refs
     const imgLoader  = document.getElementById('imgLoader');
     const cellSlider = document.getElementById('cellSize');
     const jigSlider  = document.getElementById('jiggle');
@@ -213,11 +216,9 @@
     const hc         = hidden.getContext('2d');
     const mc         = main.getContext('2d');
 
-    // Update sliders’ labels
     cellSlider.oninput = () => cellLabel.textContent = cellSlider.value + '%';
     jigSlider .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
 
-    // Brightness helper
     function avgBrightness(pixels, x, y, cell, w, h) {
       let sum = 0, count = 0, rowLen = w * 4;
       for (let yy = y; yy < y + cell && yy < h; yy++) {
@@ -231,7 +232,6 @@
       return count ? sum / count : 0;
     }
 
-    // Generate preview
     btnGen.onclick = () => {
       if (!imgLoader.files.length) return alert('Choose an image first.');
       const reader = new FileReader();
@@ -267,7 +267,8 @@
               for (let i = 0; i < density; i++) {
                 const dx = (Math.random()*2 - 1) * jig;
                 const dy = (Math.random()*2 - 1) * jig;
-                mc.fillText(String((Math.random()*10|0)+1),
+                mc.fillText(
+                  String((Math.random()*10|0)+1),
                   xx + cell/2 + dx,
                   yy + cell/2 + dy
                 );
@@ -280,10 +281,12 @@
       reader.readAsDataURL(imgLoader.files[0]);
     };
 
-    // Save as PNG
     btnSave.onclick = () => {
+      let name = prompt("Enter file name", "respire");
+      if (!name) return;
+      if (!name.toLowerCase().endsWith(".png")) name += ".png";
       const link = document.createElement('a');
-      link.download = 'respire.png';
+      link.download = name;
       link.href = main.toDataURL('image/png');
       link.click();
     };
