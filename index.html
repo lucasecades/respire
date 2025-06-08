@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Number-Grid Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Respire project</title>
 
   <!-- STIX Two Text from Google Fonts -->
   <link
@@ -11,138 +12,212 @@
   />
 
   <style>
-    /* Apply everywhere */
-    body, input, select, button, canvas {
-      font-family: 'STIX Two Text', serif;
-    }
-
     body {
+      font-family: 'STIX Two Text', serif;
+      background-color: #f8f8f8;
+      color: #111;
       max-width: 800px;
       margin: 2rem auto;
-      line-height: 1.4;
       padding: 0 1rem;
-      color: #222;
+      line-height: 1.5;
     }
-
     h1 {
-      font-size: 2.5rem;
+      text-align: center;
+      font-size: 2rem;
       font-weight: 700;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
     }
-
-    label {
-      display: block;
-      margin: 0.75rem 0;
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      align-items: start;
+      background-color: #e0e0e0;
+      padding: 1rem;
+      border-radius: 8px;
     }
-
+    .controls label {
+      display: flex;
+      flex-direction: column;
+    }
     .label-title {
-      display: block;
       font-weight: 400;
+      font-size: 0.95rem;
+      color: #111;
     }
     .label-desc {
-      display: block;
       font-weight: 300;
       font-style: italic;
-      margin-bottom: 0.25rem;
-      font-size: 0.9em;
+      font-size: 0.85rem;
       color: #555;
+      margin-bottom: 0.25rem;
     }
-
-    input[type=range] {
+    .controls input[type=range],
+    .controls input[type=number],
+    .controls select {
+      margin-top: 0.3rem;
+      padding: 0.4rem;
+      font-family: 'STIX Two Text', serif;
+      font-weight: 400;
+      font-size: 1rem;
       width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #999;
+      border-radius: 4px;
+      background: #fff;
+      color: #111;
     }
-    input[type=number], select {
-      padding: 0.2em 0.4em;
-      font-size: 1em;
+    .controls input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
     }
-
-    button {
-      display: inline-block;
-      margin-top: 1rem;
-      padding: 0.6em 1.2em;
-      font-size: 1em;
-      font-weight: 700;
-      color: #fff;
-      background-color: #333;
+    .controls input[type=range]:focus {
+      outline: none;
+    }
+    .controls input[type=range]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: #999;
+      border-radius: 2px;
+    }
+    .controls input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border-radius: 50%;
+      margin-top: -6px;
+    }
+    .controls input[type=range]::-moz-range-track {
+      height: 4px;
+      background: #999;
+      border-radius: 2px;
+    }
+    .controls input[type=range]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border-radius: 50%;
       border: none;
+    }
+    .button-row {
+      grid-column: span 2;
+      display: flex;
+      gap: 1rem;
+    }
+    .controls button {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      font-family: 'STIX Two Text', serif;
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fff;
+      background-color: #444;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #555;
+    .controls button:active {
+      background-color: #222;
     }
-
-    canvas {
+    #mainCanvas {
       width: 100%;
-      border: 1px solid #ccc;
-      margin-top: 1rem;
+      height: auto;
+      border: 1px solid #999;
+      margin-top: 1.5rem;
+      display: block;
+      background: #fff;
+    }
+    @media (max-width: 480px) {
+      h1 { font-size: 1.5rem; }
+      .controls { grid-template-columns: 1fr; }
+      .button-row { grid-column: span 1; flex-direction: column; }
     }
   </style>
 </head>
 <body>
 
-  <h1>Number-Grid Generator</h1>
+  <h1>Respire project</h1>
 
-  <label>
-    <span class="label-title">Cell size.</span>
-    <span class="label-desc">Percentage of minimal dimensions.</span>
-    <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
-  </label>
+  <div class="controls">
+    <label>
+      <span class="label-title">Pick an image.</span>
+      <span class="label-desc">Upload a photo to transform.</span>
+      <input type="file" id="imgLoader" accept="image/*">
+    </label>
 
-  <label>
-    <span class="label-title">Jiggle.</span>
-    <span class="label-desc">Fraction of the cell size.</span>
-    <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5">
-  </label>
+    <label>
+      <span class="label-title">Cell size.</span>
+      <span class="label-desc">Percentage of minimal dimensions.</span>
+      <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
+      <span id="cellSizeLabel">0.9%</span>
+    </label>
 
-  <label>
-    <span class="label-title">Font size.</span>
-    <span class="label-desc">In pixels.</span>
-    <input type="number" id="fontSize" value="10" min="1">
-  </label>
+    <label>
+      <span class="label-title">Jiggle.</span>
+      <span class="label-desc">Fraction of the cell size.</span>
+      <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5">
+      <span id="jiggleLabel">0.50</span>
+    </label>
 
-  <label>
-    <span class="label-title">Density.</span>
-    <span class="label-desc">Digits per cell.</span>
-    <input type="number" id="density" value="1" min="1">
-  </label>
+    <label>
+      <span class="label-title">Font size.</span>
+      <span class="label-desc">In pixels.</span>
+      <input type="number" id="fontSize" value="10" min="1">
+    </label>
 
-  <label>
-    <span class="label-title">Color mode.</span>
-    <span class="label-desc">Grayscale or BW.</span>
-    <select id="colorMode">
-      <option>Grayscale</option>
-      <option>BW</option>
-    </select>
-  </label>
+    <label>
+      <span class="label-title">Density.</span>
+      <span class="label-desc">Digits per cell.</span>
+      <input type="number" id="density" value="1" min="1">
+    </label>
 
-  <label>
-    <span class="label-title">Pick an image.</span>
-    <span class="label-desc">Upload a photo to transform.</span>
-    <input type="file" id="imgLoader" accept="image/*">
-  </label>
+    <label>
+      <span class="label-title">Color mode.</span>
+      <span class="label-desc">Grayscale or BW.</span>
+      <select id="colorMode">
+        <option>Grayscale</option>
+        <option>BW</option>
+      </select>
+    </label>
 
-  <button id="generate">Generate Preview</button>
+    <label>
+      <span class="label-title">Resolution scale.</span>
+      <span class="label-desc">2× for double, 3× for triple, etc.</span>
+      <input type="number" id="scale" value="1" min="1" step="0.5">
+    </label>
 
-  <!-- Hidden for pixel sampling -->
+    <div class="button-row">
+      <button id="generate">Generate Preview</button>
+      <button id="save">Save as PNG</button>
+    </div>
+  </div>
+
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
-  <!-- Visible result -->
   <canvas id="mainCanvas"></canvas>
 
   <script>
-    // DOM refs
+    // Element refs
+    const imgLoader  = document.getElementById('imgLoader');
     const cellSlider = document.getElementById('cellSize');
     const jigSlider  = document.getElementById('jiggle');
     const fontInput  = document.getElementById('fontSize');
     const densInput  = document.getElementById('density');
     const modeSelect = document.getElementById('colorMode');
-    const imgLoader  = document.getElementById('imgLoader');
-    const btn        = document.getElementById('generate');
+    const scaleInput = document.getElementById('scale');
+    const btnGen     = document.getElementById('generate');
+    const btnSave    = document.getElementById('save');
+    const cellLabel  = document.getElementById('cellSizeLabel');
+    const jigLabel   = document.getElementById('jiggleLabel');
     const hidden     = document.getElementById('hiddenCanvas');
     const main       = document.getElementById('mainCanvas');
     const hc         = hidden.getContext('2d');
     const mc         = main.getContext('2d');
 
-    // Utility: average brightness
+    // Update sliders’ labels
+    cellSlider.oninput = () => cellLabel.textContent = cellSlider.value + '%';
+    jigSlider .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
+
+    // Brightness helper
     function avgBrightness(pixels, x, y, cell, w, h) {
       let sum = 0, count = 0, rowLen = w * 4;
       for (let yy = y; yy < y + cell && yy < h; yy++) {
@@ -156,48 +231,45 @@
       return count ? sum / count : 0;
     }
 
-    btn.addEventListener('click', () => {
-      if (!imgLoader.files.length) {
-        return alert('Please choose an image first.');
-      }
-      // read settings
-      const cellPct = parseFloat(cellSlider.value) / 100;
-      const jigFrac = parseFloat(jigSlider.value);
-      const fSize   = parseInt(fontInput.value, 10) || 10;
-      const density = parseInt(densInput.value, 10) || 1;
-      const mode    = modeSelect.value;
-
+    // Generate preview
+    btnGen.onclick = () => {
+      if (!imgLoader.files.length) return alert('Choose an image first.');
       const reader = new FileReader();
       reader.onload = e => {
         const img = new Image();
         img.onload = () => {
           const w = img.width, h = img.height;
-          hidden.width  = main.width  = w;
-          hidden.height = main.height = h;
-          hc.drawImage(img, 0, 0, w, h);
+          const scale = Math.max(1, parseFloat(scaleInput.value) || 1);
 
-          const pixels = hc.getImageData(0,0,w,h).data;
-          const cell   = Math.max(1, Math.floor(cellPct * Math.min(w,h)));
-          const jig    = jigFrac * cell;
+          hidden.width = main.width = w * scale;
+          hidden.height = main.height = h * scale;
+          hc.drawImage(img, 0, 0, w * scale, h * scale);
+
+          const pixels = hc.getImageData(0,0,w*scale,h*scale).data;
+          const cellPct = parseFloat(cellSlider.value) / 100;
+          const cell    = Math.max(1, Math.floor(cellPct * Math.min(w,h) * scale));
+          const jig     = parseFloat(jigSlider.value) * cell;
+          const fSize   = parseInt(fontInput.value, 10) * scale;
+          const density = parseInt(densInput.value, 10);
+          const mode    = modeSelect.value;
 
           mc.fillStyle = 'white';
-          mc.fillRect(0,0,w,h);
+          mc.fillRect(0,0,w*scale,h*scale);
           mc.font = `${fSize}px 'STIX Two Text'`;
           mc.textAlign = 'center';
           mc.textBaseline = 'middle';
 
-          for (let y = 0; y < h; y += cell) {
-            for (let x = 0; x < w; x += cell) {
-              const m = avgBrightness(pixels, x, y, cell, w, h);
+          for (let yy = 0; yy < h*scale; yy += cell) {
+            for (let xx = 0; xx < w*scale; xx += cell) {
+              const m = avgBrightness(pixels, xx, yy, cell, w*scale, h*scale);
               if (mode === 'BW' && m > 128) continue;
               mc.fillStyle = `rgb(${m|0},${m|0},${m|0})`;
               for (let i = 0; i < density; i++) {
                 const dx = (Math.random()*2 - 1) * jig;
                 const dy = (Math.random()*2 - 1) * jig;
-                mc.fillText(
-                  String(Math.floor(Math.random()*10)+1),
-                  x + cell/2 + dx,
-                  y + cell/2 + dy
+                mc.fillText(String((Math.random()*10|0)+1),
+                  xx + cell/2 + dx,
+                  yy + cell/2 + dy
                 );
               }
             }
@@ -206,8 +278,15 @@
         img.src = e.target.result;
       };
       reader.readAsDataURL(imgLoader.files[0]);
-    });
-  </script>
+    };
 
+    // Save as PNG
+    btnSave.onclick = () => {
+      const link = document.createElement('a');
+      link.download = 'respire.png';
+      link.href = main.toDataURL('image/png');
+      link.click();
+    };
+  </script>
 </body>
 </html>
