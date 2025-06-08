@@ -1,100 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Number-Grid Generator</title>
-
-  <!-- PyScript runtime (must be here!) -->
-  <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
-  <script defer src="https://pyscript.net/latest/pyscript.js"></script>
-
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    #mainCanvas { width: 100%; border: 1px solid #ccc; margin-top: 1rem; }
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      line-height: 1.4;
+    }
+    label { display: block; margin: .5rem 0; }
+    canvas { width: 100%; border: 1px solid #ccc; margin-top: 1rem; }
   </style>
 </head>
 <body>
 
-  <!-- Controls + Canvases -->
-  <input type="file" id="imgLoader" accept="image/*" /><br/><br/>
-  <label>Cell size (%): <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9"/></label><br/>
-  <label>Jiggle: <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5"/></label><br/>
-  <label>Font size: <input type="number" id="fontSize" value="10" style="width:4em;"/></label>
-  <label>Density: <input type="number" id="density" value="1" min="1" style="width:3em;"/></label><br/>
-  <label>Color mode:
-    <select id="colorMode"><option>Grayscale</option><option>BW</option></select>
+  <h1>Number-Grid Generator</h1>
+
+  <label>
+    Pick an image:
+    <input type="file" id="imgLoader" accept="image/*">
   </label>
+
+  <label>
+    Cell size (% of min-dim): 
+    <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
+    <span id="cellSizeLabel">0.9%</span>
+  </label>
+
+  <label>
+    Jiggle (fraction of cell):
+    <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5">
+    <span id="jiggleLabel">0.50</span>
+  </label>
+
+  <label>
+    Font size (px):
+    <input type="number" id="fontSize" value="10" style="width:4em;">
+  </label>
+
+  <label>
+    Density:
+    <input type="number" id="density" value="1" min="1" style="width:3em;">
+  </label>
+
+  <label>
+    Color mode:
+    <select id="colorMode">
+      <option>Grayscale</option>
+      <option>BW</option>
+    </select>
+  </label>
+
   <button id="generate">Generate Preview</button>
 
+  <!-- hidden canvas for pixel read -->
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
+  <!-- visible result -->
   <canvas id="mainCanvas"></canvas>
 
-  <!-- Your Python code, inside <py-script> -->
-  <py-script>
-import js, random
+  <script>
+    const imgLoader  = document.getElementById('imgLoader');
+    const cellSlider = document.getElementById('cellSize');
+    const jigSlider  = document.getElementById('jiggle');
+    const fontInput  = document.getElementById('fontSize');
+    const densInput  = document.getElementById('density');
+    const modeSelect = document.getElementById('colorMode');
+    const btn        = document.getElementById('generate');
+    const cellLabel  = document.getElementById('cellSizeLabel');
+    const jigLabel   = document.getElementById('jiggleLabel');
+    const hidden     = document.getElementById('hiddenCanvas');
+    const main       = document.getElementById('mainCanvas');
+    const hc         = hidden.getContext('2d');
+    const mc         = main.getContext('2d');
 
-def avg_brightness(data, x, y, cell, w, h):
-    s = cnt = 0
-    for yy in range(y, min(y+cell, h)):
-        for xx in range(x, min(x+cell, w)):
-            i = (yy*w + xx)*4
-            s += sum(data[i:i+3]) / 3
-            cnt += 1
-    return s/cnt if cnt else 0
+    // update labels
+    cellSlider.oninput = () => cellLabel.textContent = cellSlider.value + '%';
+    jigSlider .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
 
-def generate(ev):
-    loader = js.document.getElementById("imgLoader")
-    if not loader.files.length:
-        js.window.alert("Please choose an image first.")
-        return
+    // compute avg brightness in a cell
+    function avgBrightness(pixels, x, y, cell, w, h) {
+      let sum = 0, count = 0;
+      const rowLen = w * 4;
+      for (let yy = y; yy < y + cell && yy < h; yy++) {
+        let base = yy * rowLen;
+        for (let xx = x; xx < x + cell && xx < w; xx++) {
+          const i = base + xx * 4;
+          sum += (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
+          count++;
+        }
+      }
+      return count ? sum / count : 0;
+    }
 
-    cPct, jigFrac = map(float, [js.document.getElementById("cellSize").value,
-                                js.document.getElementById("jiggle").value])
-    fSize, density = map(int, [js.document.getElementById("fontSize").value,
-                               js.document.getElementById("density").value])
-    mode = js.document.getElementById("colorMode").value
+    btn.onclick = () => {
+      if (!imgLoader.files.length) {
+        alert('Please choose an image first.');
+        return;
+      }
+      const file = imgLoader.files[0];
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const w = img.width, h = img.height;
+          hidden.width = main.width = w;
+          hidden.height = main.height = h;
+          hc.drawImage(img, 0, 0, w, h);
 
-    hC = js.document.getElementById("hiddenCanvas")
-    mC = js.document.getElementById("mainCanvas")
-    hc, mc = hC.getContext("2d"), mC.getContext("2d")
+          const pixels = hc.getImageData(0,0,w,h).data;
+          const cellPct = parseFloat(cellSlider.value) / 100;
+          const cell    = Math.max(1, Math.floor(cellPct * Math.min(w,h)));
+          const jig     = parseFloat(jigSlider.value) * cell;
+          const fSize   = parseInt(fontInput.value, 10);
+          const density = parseInt(densInput.value, 10);
+          const mode    = modeSelect.value;
 
-    fr = js.FileReader.new()
-    def on_file(evt):
-        img = js.window.Image.new()
-        img.src = evt.target.result
-        def on_img(e):
-            w, h = img.width, img.height
-            hC.width = w; hC.height = h
-            mC.width = w; mC.height = h
-            hc.drawImage(img, 0, 0)
-            pixels = hc.getImageData(0,0,w,h).data.to_py()
+          mc.fillStyle = 'white';
+          mc.fillRect(0,0,w,h);
+          mc.font = `${fSize}px sans-serif`;
+          mc.textAlign = 'center';
+          mc.textBaseline = 'middle';
 
-            cell = max(1, int((cPct/100)*min(w,h)))
-            jig  = jigFrac * cell
-
-            mc.fillStyle = "white"
-            mc.fillRect(0,0,w,h)
-            mc.font = f"{fSize}px sans-serif"
-            mc.textAlign = "center"
-            mc.textBaseline = "middle"
-
-            for yy in range(0, h, cell):
-                for xx in range(0, w, cell):
-                    m = avg_brightness(pixels, xx, yy, cell, w, h)
-                    if mode=="BW" and m>128: continue
-                    mc.fillStyle = f"rgb({int(m)},{int(m)},{int(m)})"
-                    for _ in range(density):
-                        dx = (random.random()*2-1)*jig
-                        dy = (random.random()*2-1)*jig
-                        mc.fillText(str(random.randint(1,10)),
-                                    xx+cell/2+dx, yy+cell/2+dy)
-        img.onload = on_img
-
-    fr.onload = on_file
-    fr.readAsDataURL(loader.files[0])
-
-js.document.getElementById("generate").addEventListener("click", generate)
-  </py-script>
-
+          for (let y = 0; y < h; y += cell) {
+            for (let x = 0; x < w; x += cell) {
+              const m = avgBrightness(pixels, x, y, cell, w, h);
+              if (mode === 'BW' && m > 128) continue;
+              mc.fillStyle = `rgb(${m|0},${m|0},${m|0})`;
+              for (let i=0; i<density; i++) {
+                const dx = (Math.random()*2 - 1) * jig;
+                const dy = (Math.random()*2 - 1) * jig;
+                const digit = String(Math.floor(Math.random()*10)+1);
+                mc.fillText(digit, x + cell/2 + dx, y + cell/2 + dy);
+              }
+            }
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+  </script>
 </body>
 </html>
