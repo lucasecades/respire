@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Respire project</title>
-  <!-- Google Font for scientific-paper style -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;700&display=swap" />
+  <!-- Old Standard TT font -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" />
   <style>
     body {
-      font-family: 'Source Serif Pro', serif;
-      background-color: #fafafa;
-      color: #333;
+      font-family: 'Old Standard TT', serif;
+      background-color: #f8f8f8;
+      color: #111;
       max-width: 800px;
       margin: 2rem auto;
       padding: 0 1rem;
@@ -34,7 +34,7 @@
       display: flex;
       flex-direction: column;
       font-size: 0.95rem;
-      color: #222;
+      color: #111;
     }
     .controls input[type=range],
     .controls input[type=number],
@@ -44,9 +44,43 @@
       font-size: 1rem;
       width: 100%;
       box-sizing: border-box;
-      border: 1px solid #ccc;
+      border: 1px solid #999;
       border-radius: 4px;
       background: #fff;
+      color: #111;
+    }
+    /* Grayscale slider styling */
+    .controls input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    .controls input[type=range]:focus {
+      outline: none;
+    }
+    .controls input[type=range]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: #999;
+      border-radius: 2px;
+    }
+    .controls input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border-radius: 50%;
+      margin-top: -6px;
+    }
+    .controls input[type=range]::-moz-range-track {
+      height: 4px;
+      background: #999;
+      border-radius: 2px;
+    }
+    .controls input[type=range]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border-radius: 50%;
+      border: none;
     }
     .button-row {
       grid-column: span 2;
@@ -59,17 +93,18 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      background-color: #666;
+      background-color: #444;
       color: #fff;
       flex: 1;
+      font-family: 'Old Standard TT', serif;
     }
     .controls button:active {
-      background-color: #444;
+      background-color: #222;
     }
     #mainCanvas {
       width: 100%;
       height: auto;
-      border: 1px solid #ccc;
+      border: 1px solid #999;
       margin-top: 1.5rem;
       display: block;
       background: #fff;
@@ -195,7 +230,7 @@
 
           mc.fillStyle = 'white';
           mc.fillRect(0,0,w*scale,h*scale);
-          mc.font = `${fSize}px sans-serif`;
+          mc.font = `${fSize}px serif`;
           mc.textAlign = 'center';
           mc.textBaseline = 'middle';
 
