@@ -1,0 +1,101 @@
+<!-- 1) PyScript runtime -->
+<link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+<script defer src="https://pyscript.net/latest/pyscript.js"></script>
+
+<!-- 2) Controls + canvases -->
+<div style="max-width:600px;margin:auto;">
+  <input type="file" id="imgLoader" accept="image/*" /><br/><br/>
+  <label>Cell size (% of min‐dim): <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9"/></label><br/>
+  <label>Jiggle (fraction of cell): <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5"/></label><br/>
+  <label>Font size: <input type="number" id="fontSize" value="10" style="width:4em;"/></label>
+  <label>Density: <input type="number" id="density" value="1" min="1" style="width:3em;"/></label><br/>
+  <label>Color mode:
+    <select id="colorMode">
+      <option>Grayscale</option>
+      <option>BW</option>
+    </select>
+  </label>
+  <button id="generate">Generate Preview</button>
+  <hr/>
+  <!-- hiddenCanvas used to sample pixels, mainCanvas shows the result -->
+  <canvas id="hiddenCanvas" style="display:none;"></canvas>
+  <canvas id="mainCanvas" style="width:100%;border:1px solid #ccc;"></canvas>
+</div>
+
+<!-- 3) PyScript code -->
+<py-script>
+import js, random
+
+def avg_brightness(data, x, y, cell, w, h):
+    s = 0; cnt = 0
+    for yy in range(y, min(y+cell, h)):
+        for xx in range(x, min(x+cell, w)):
+            i = (yy*w + xx)*4
+            r,g,b = data[i], data[i+1], data[i+2]
+            s += (r + g + b)/3
+            cnt += 1
+    return s/cnt if cnt else 0
+
+def generate(ev):
+    loader = js.document.getElementById("imgLoader")
+    if not loader.files.length:
+        js.window.alert("Please choose an image first.")
+        return
+
+    # read controls
+    cellPct   = float(js.document.getElementById("cellSize").value)
+    jigFrac   = float(js.document.getElementById("jiggle").value)
+    fontSize  = int(js.document.getElementById("fontSize").value)
+    density   = int(js.document.getElementById("density").value)
+    colorMode = js.document.getElementById("colorMode").value
+
+    # prepare canvases & contexts
+    hidden = js.document.getElementById("hiddenCanvas")
+    main   = js.document.getElementById("mainCanvas")
+    hc = hidden.getContext("2d")
+    mc = main.getContext("2d")
+
+    # load image via FileReader → Image
+    fr = js.FileReader.new()
+    def on_file(evt):
+        img = js.window.Image.new()
+        img.src = evt.target.result
+        def on_img(e2):
+            w, h = img.width, img.height
+            hidden.width  = w; hidden.height = h
+            main.width    = w; main.height   = h
+            hc.drawImage(img, 0, 0)
+            # get pixel data once
+            arr = hc.getImageData(0,0,w,h).data.to_py()
+
+            # compute cell size in px
+            cell = max(1, int((cellPct/100)*min(w,h)))
+            jig  = jigFrac * cell
+
+            # clear & setup main canvas
+            mc.fillStyle = "white"
+            mc.fillRect(0,0,w,h)
+            mc.font = f"{fontSize}px sans-serif"
+            mc.textAlign = "center"
+            mc.textBaseline = "middle"
+
+            # draw the grid of digits
+            for yy in range(0, h, cell):
+                for xx in range(0, w, cell):
+                    m = avg_brightness(arr, xx, yy, cell, w, h)
+                    if colorMode=="BW" and m>128:
+                        continue
+                    mc.fillStyle = f"rgb({int(m)},{int(m)},{int(m)})"
+                    for _ in range(density):
+                        dx = (random.random()*2 - 1)*jig
+                        dy = (random.random()*2 - 1)*jig
+                        digit = str(random.randint(1, 10))
+                        mc.fillText(digit, xx + cell/2 + dx, yy + cell/2 + dy)
+        img.onload = on_img
+
+    fr.onload = on_file
+    fr.readAsDataURL(loader.files[0])
+
+# wire up the button
+js.document.getElementById("generate").addEventListener("click", generate)
+</py-script>
