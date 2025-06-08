@@ -17,7 +17,7 @@
 </head>
 <body>
 
-  <h1>Number-Grid Generator</h1>
+  <h1>Respire</h1>
 
   <label>
     Pick an image:
@@ -160,7 +160,7 @@
     btnSave.onclick = () => {
       // download PNG at full buffer resolution
       const link = document.createElement('a');
-      link.download = 'number-grid.png';
+      link.download = 'respire.png';
       link.href = main.toDataURL('image/png');
       link.click();
     };
