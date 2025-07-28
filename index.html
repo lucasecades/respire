@@ -54,7 +54,8 @@
     }
     .controls input[type=range],
     .controls input[type=number],
-    .controls select {
+    .controls select,
+    .controls input[type=text] {
       margin-top: 0.3rem;
       padding: 0.4rem;
       font-family: 'STIX Two Text', serif;
@@ -150,6 +151,21 @@
     </label>
 
     <label>
+      <span class="label-title">Content type.</span>
+      <span class="label-desc">Numbers or custom words.</span>
+      <select id="contentType">
+        <option value="numbers">Numbers</option>
+        <option value="words">Words</option>
+      </select>
+    </label>
+
+    <label id="wordInputLabel" style="display:none;">
+      <span class="label-title">Word list.</span>
+      <span class="label-desc">Semicolon-separated words.</span>
+      <input type="text" id="wordList" placeholder="apple; car; co2; s">
+    </label>
+
+    <label>
       <span class="label-title">Cell size.</span>
       <span class="label-desc">Percentage of minimal dimensions.</span>
       <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
@@ -171,7 +187,7 @@
 
     <label>
       <span class="label-title">Density.</span>
-      <span class="label-desc">Digits per cell.</span>
+      <span class="label-desc">Items per cell.</span>
       <input type="number" id="density" value="1" min="1">
     </label>
 
@@ -200,24 +216,32 @@
   <canvas id="mainCanvas"></canvas>
 
   <script>
-    const imgLoader  = document.getElementById('imgLoader');
-    const cellSlider = document.getElementById('cellSize');
-    const jigSlider  = document.getElementById('jiggle');
-    const fontInput  = document.getElementById('fontSize');
-    const densInput  = document.getElementById('density');
-    const modeSelect = document.getElementById('colorMode');
-    const scaleInput = document.getElementById('scale');
-    const btnGen     = document.getElementById('generate');
-    const btnSave    = document.getElementById('save');
-    const cellLabel  = document.getElementById('cellSizeLabel');
-    const jigLabel   = document.getElementById('jiggleLabel');
-    const hidden     = document.getElementById('hiddenCanvas');
-    const main       = document.getElementById('mainCanvas');
-    const hc         = hidden.getContext('2d');
-    const mc         = main.getContext('2d');
+    const imgLoader    = document.getElementById('imgLoader');
+    const contentType  = document.getElementById('contentType');
+    const wordInputLab = document.getElementById('wordInputLabel');
+    const wordListIn   = document.getElementById('wordList');
+    const cellSlider   = document.getElementById('cellSize');
+    const jigSlider    = document.getElementById('jiggle');
+    const fontInput    = document.getElementById('fontSize');
+    const densInput    = document.getElementById('density');
+    const modeSelect   = document.getElementById('colorMode');
+    const scaleInput   = document.getElementById('scale');
+    const btnGen       = document.getElementById('generate');
+    const btnSave      = document.getElementById('save');
+    const cellLabel    = document.getElementById('cellSizeLabel');
+    const jigLabel     = document.getElementById('jiggleLabel');
+    const hidden       = document.getElementById('hiddenCanvas');
+    const main         = document.getElementById('mainCanvas');
+    const hc           = hidden.getContext('2d');
+    const mc           = main.getContext('2d');
+
+    // Toggle word input visibility
+    contentType.onchange = () => {
+      wordInputLab.style.display = (contentType.value === 'words') ? 'flex' : 'none';
+    };
 
     cellSlider.oninput = () => cellLabel.textContent = cellSlider.value + '%';
-    jigSlider .oninput = () => jigLabel .textContent = parseFloat(jigSlider.value).toFixed(2);
+    jigSlider.oninput  = () => jigLabel.textContent = parseFloat(jigSlider.value).toFixed(2);
 
     function avgBrightness(pixels, x, y, cell, w, h) {
       let sum = 0, count = 0, rowLen = w * 4;
@@ -234,18 +258,26 @@
 
     btnGen.onclick = () => {
       if (!imgLoader.files.length) return alert('Choose an image first.');
+      if (contentType.value === 'words' && !wordListIn.value.trim())
+        return alert('Enter at least one word.');
+
+      const words = contentType.value === 'words'
+        ? wordListIn.value.split(';').map(w => w.trim()).filter(w => w)
+        : null;
+
       const reader = new FileReader();
       reader.onload = e => {
         const img = new Image();
         img.onload = () => {
-          const w = img.width, h = img.height;
+          const w     = img.width;
+          const h     = img.height;
           const scale = Math.max(1, parseFloat(scaleInput.value) || 1);
 
           hidden.width = main.width = w * scale;
           hidden.height = main.height = h * scale;
           hc.drawImage(img, 0, 0, w * scale, h * scale);
 
-          const pixels = hc.getImageData(0,0,w*scale,h*scale).data;
+          const pixels  = hc.getImageData(0,0,w*scale,h*scale).data;
           const cellPct = parseFloat(cellSlider.value) / 100;
           const cell    = Math.max(1, Math.floor(cellPct * Math.min(w,h) * scale));
           const jig     = parseFloat(jigSlider.value) * cell;
@@ -267,11 +299,10 @@
               for (let i = 0; i < density; i++) {
                 const dx = (Math.random()*2 - 1) * jig;
                 const dy = (Math.random()*2 - 1) * jig;
-                mc.fillText(
-                  String((Math.random()*10|0)+1),
-                  xx + cell/2 + dx,
-                  yy + cell/2 + dy
-                );
+                const text = words
+                  ? words[Math.floor(Math.random() * words.length)]
+                  : String((Math.random()*10|0) + 1);
+                mc.fillText(text, xx + cell/2 + dx, yy + cell/2 + dy);
               }
             }
           }
