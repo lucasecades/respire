@@ -9,8 +9,11 @@
   <link href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:wght@300;400;700&family=Roboto:wght@300;400;700&family=Open+Sans:wght@300;400;700&family=Lato:wght@300;400;700&family=Montserrat:wght@300;400;700&family=Manrope:wght@300;400;700&display=swap" rel="stylesheet" />
 
   <style>
+    :root {
+      --body-font: 'STIX Two Text', serif;
+    }
     body {
-      font-family: var(--body-font, 'STIX Two Text'), serif;
+      font-family: var(--body-font);
       background-color: #f8f8f8;
       color: #111;
       max-width: 800px;
@@ -49,13 +52,11 @@
       color: #555;
       margin-bottom: 0.25rem;
     }
-    .controls input[type=range],
-    .controls input[type=number],
-    .controls select,
-    .controls input[type=text] {
+    .controls input,
+    .controls select {
       margin-top: 0.3rem;
       padding: 0.4rem;
-      font-family: var(--body-font, 'STIX Two Text');
+      font-family: var(--body-font);
       font-weight: 400;
       font-size: 1rem;
       width: 100%;
@@ -64,6 +65,36 @@
       border-radius: 4px;
       background: #fff;
       color: #111;
+    }
+    .controls input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    .controls input[type=range]:focus { outline: none; }
+    .controls input[type=range]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: #999;
+      border-radius: 2px;
+    }
+    .controls input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border-radius: 50%;
+      margin-top: -6px;
+    }
+    .controls input[type=range]::-moz-range-track {
+      height: 4px;
+      background: #999;
+      border-radius: 2px;
+    }
+    .controls input[type=range]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border-radius: 50%;
+      border: none;
     }
     .button-row {
       grid-column: span 2;
@@ -74,7 +105,7 @@
     .controls button {
       flex: 1;
       padding: 0.6rem 1rem;
-      font-family: var(--body-font, 'STIX Two Text');
+      font-family: var(--body-font);
       font-weight: 700;
       font-size: 1rem;
       color: #fff;
@@ -86,9 +117,7 @@
       align-items: center;
       justify-content: center;
     }
-    .controls button:active {
-      background-color: #222;
-    }
+    .controls button:active { background-color: #222; }
     #mainCanvas {
       width: 100%;
       height: auto;
@@ -105,16 +134,13 @@
   </style>
 </head>
 <body>
-
   <h1>Respire project</h1>
-
   <div class="controls">
     <label>
       <span class="label-title">Pick an image.</span>
       <span class="label-desc">Upload a photo to transform.</span>
       <input type="file" id="imgLoader" accept="image/*">
     </label>
-
     <label>
       <span class="label-title">Content type.</span>
       <span class="label-desc">Numbers or custom words.</span>
@@ -123,13 +149,11 @@
         <option value="words">Words</option>
       </select>
     </label>
-
     <label id="wordInputLabel" style="display:none;">
       <span class="label-title">Word list.</span>
       <span class="label-desc">Semicolon-separated words.</span>
       <input type="text" id="wordList" placeholder="apple; car; co2; s">
     </label>
-
     <label>
       <span class="label-title">Font family.</span>
       <span class="label-desc">Choose a Google Font.</span>
@@ -142,33 +166,28 @@
         <option value="Manrope">Manrope</option>
       </select>
     </label>
-
     <label>
       <span class="label-title">Cell size.</span>
       <span class="label-desc">Percentage of minimal dimensions.</span>
       <input type="range" id="cellSize" min="0.5" max="5" step="0.1" value="0.9">
       <span id="cellSizeLabel">0.9%</span>
     </label>
-
     <label>
       <span class="label-title">Jiggle.</span>
       <span class="label-desc">Fraction of the cell size.</span>
       <input type="range" id="jiggle" min="0" max="1" step="0.01" value="0.5">
       <span id="jiggleLabel">0.50</span>
     </label>
-
     <label>
       <span class="label-title">Font size.</span>
       <span class="label-desc">In pixels.</span>
       <input type="number" id="fontSize" value="10" min="1">
     </label>
-
     <label>
       <span class="label-title">Density.</span>
       <span class="label-desc">Items per cell.</span>
       <input type="number" id="density" value="1" min="1">
     </label>
-
     <label>
       <span class="label-title">Color mode.</span>
       <span class="label-desc">Grayscale or BW.</span>
@@ -177,51 +196,123 @@
         <option>BW</option>
       </select>
     </label>
-
     <label>
       <span class="label-title">Resolution scale.</span>
       <span class="label-desc">2× for double, 3× for triple, etc.</span>
       <input type="number" id="scale" value="1" min="1" step="0.5">
     </label>
-
     <div class="button-row">
       <button id="generate">Generate Preview</button>
       <button id="save">Save as PNG</button>
     </div>
   </div>
-
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
   <canvas id="mainCanvas"></canvas>
-
   <script>
-    const imgLoader    = document.getElementById('imgLoader');
-    const contentType  = document.getElementById('contentType');
+    const imgLoader = document.getElementById('imgLoader');
+    const contentType = document.getElementById('contentType');
     const wordInputLab = document.getElementById('wordInputLabel');
-    const wordListIn   = document.getElementById('wordList');
-    const fontSelect   = document.getElementById('fontFamily');
-    const cellSlider   = document.getElementById('cellSize');
-    const jigSlider    = document.getElementById('jiggle');
-    const fontInput    = document.getElementById('fontSize');
-    const densInput    = document.getElementById('density');
-    const modeSelect   = document.getElementById('colorMode');
-    const scaleInput   = document.getElementById('scale');
-    const btnGen       = document.getElementById('generate');
-    const btnSave      = document.getElementById('save');
-    const cellLabel    = document.getElementById('cellSizeLabel');
-    const jigLabel     = document.getElementById('jiggleLabel');
-    const hidden       = document.getElementById('hiddenCanvas');
-    const main         = document.getElementById('mainCanvas');
-    const hc           = hidden.getContext('2d');
-    const mc           = main.getContext('2d');
+    const wordListIn = document.getElementById('wordList');
+    const fontSelect = document.getElementById('fontFamily');
+    const cellSlider = document.getElementById('cellSize');
+    const jigSlider = document.getElementById('jiggle');
+    const fontInput = document.getElementById('fontSize');
+    const densInput = document.getElementById('density');
+    const modeSelect = document.getElementById('colorMode');
+    const scaleInput = document.getElementById('scale');
+    const btnGen = document.getElementById('generate');
+    const btnSave = document.getElementById('save');
+    const cellLabel = document.getElementById('cellSizeLabel');
+    const jigLabel = document.getElementById('jiggleLabel');
+    const hidden = document.getElementById('hiddenCanvas');
+    const main = document.getElementById('mainCanvas');
+    const hc = hidden.getContext('2d');
+    const mc = main.getContext('2d');
 
-    contentType.onchange = () => {
+    // Toggle word input visibility
+    contentType.addEventListener('change', () => {
       wordInputLab.style.display = contentType.value === 'words' ? 'flex' : 'none';
-    };
-    cellSlider.oninput = () => cellLabel.textContent = cellSlider.value + '%';
-    jigSlider.oninput  = () => jigLabel.textContent = parseFloat(jigSlider.value).toFixed(2);
+    });
+
+    // Update labels
+    cellSlider.addEventListener('input', () => cellLabel.textContent = cellSlider.value + '%');
+    jigSlider.addEventListener('input', () => jigLabel.textContent = parseFloat(jigSlider.value).toFixed(2));
 
     function avgBrightness(pixels, x, y, cell, w, h) {
       let sum = 0, count = 0, rowLen = w * 4;
       for (let yy = y; yy < y + cell && yy < h; yy++) {
         let base = yy * rowLen;
-        for (let xx
+        for (let xx = x; xx < x + cell && xx < w; xx++) {
+          let i = base + xx * 4;
+          sum += (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
+          count++;
+        }
+      }
+      return count ? sum / count : 0;
+    }
+
+    btnGen.addEventListener('click', () => {
+      if (!imgLoader.files.length) return alert('Choose an image first.');
+      if (contentType.value === 'words' && !wordListIn.value.trim()) return alert('Enter at least one word.');
+      const words = contentType.value === 'words'
+        ? wordListIn.value.split(';').map(w => w.trim()).filter(w => w)
+        : null;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const w = img.width, h = img.height;
+          const scale = Math.max(1, parseFloat(scaleInput.value) || 1);
+          hidden.width = main.width = w * scale;
+          hidden.height = main.height = h * scale;
+          hc.drawImage(img, 0, 0, w * scale, h * scale);
+
+          const pixels = hc.getImageData(0, 0, w * scale, h * scale).data;
+          const cellPct = parseFloat(cellSlider.value) / 100;
+          const cell = Math.max(1, Math.floor(cellPct * Math.min(w, h) * scale));
+          const jig = parseFloat(jigSlider.value) * cell;
+          const fSize = parseInt(fontInput.value, 10) * scale;
+          const density = parseInt(densInput.value, 10);
+          const mode = modeSelect.value;
+          const fontFam = fontSelect.value;
+
+          // Apply font to document and canvas
+          document.documentElement.style.setProperty('--body-font', fontFam + ', serif');
+          mc.font = `${fSize}px '${fontFam}'`;
+          mc.textAlign = 'center';
+          mc.textBaseline = 'middle';
+
+          mc.fillStyle = 'white'; mc.fillRect(0, 0, w * scale, h * scale);
+          for (let yy = 0; yy < h * scale; yy += cell) {
+            for (let xx = 0; xx < w * scale; xx += cell) {
+              const m = avgBrightness(pixels, xx, yy, cell, w * scale, h * scale);
+              if (mode === 'BW' && m > 128) continue;
+              mc.fillStyle = `rgb(${m|0},${m|0},${m|0})`;
+              for (let i = 0; i < density; i++) {
+                const dx = (Math.random()*2 - 1) * jig;
+                const dy = (Math.random()*2 - 1) * jig;
+                const text = words
+                  ? words[Math.floor(Math.random() * words.length)]
+                  : String((Math.random()*10|0) + 1);
+                mc.fillText(text, xx + cell/2 + dx, yy + cell/2 + dy);
+              }
+            }
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(imgLoader.files[0]);
+    });
+
+    btnSave.addEventListener('click', () => {
+      let name = prompt('Enter file name', 'respire');
+      if (!name) return;
+      if (!name.toLowerCase().endsWith('.png')) name += '.png';
+      const link = document.createElement('a');
+      link.download = name;
+      link.href = main.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>
