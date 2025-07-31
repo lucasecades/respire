@@ -218,14 +218,14 @@
     <div id="bwExtras" class="bw-extra">
       <label style="flex:1;">
         <span class="label-title">BW threshold.</span>
-        <span class="label-desc">0 = white, 255 = black. Above threshold shows content.</span>
+        <span class="label-desc">0 = white, 255 = black. Below threshold becomes solid black; above shows content.</span>
         <input type="range" id="bwThreshold" min="0" max="255" step="1" value="128" />
         <span id="bwThresholdLabel">128</span>
       </label>
       <div style="display:flex; flex-direction:column; justify-content:flex-end;">
         <span class="label-title">Black mode</span>
         <button id="blackToggle" class="toggle-btn">Black OFF</button>
-        <div style="font-size:.75rem; margin-top:4px; color:#555;">When ON: no blending, solid black.</div>
+        <div style="font-size:.75rem; margin-top:4px; color:#555;">When ON: above-threshold still solid black (no blending).</div>
       </div>
     </div>
     <label>
@@ -267,12 +267,9 @@
 
     let blackMode = false;
 
-    // Toggle word input visibility
     contentType.addEventListener('change', () => {
       wordInputLab.style.display = contentType.value === 'words' ? 'flex' : 'none';
     });
-
-    // Update labels
     cellSlider.addEventListener('input', () => cellLabel.textContent = cellSlider.value + '%');
     jigSlider.addEventListener('input', () => jigLabel.textContent = parseFloat(jigSlider.value).toFixed(2));
     bwThreshold.addEventListener('input', () => bwThresholdLabel.textContent = bwThreshold.value);
@@ -300,7 +297,7 @@
           count++;
         }
       }
-      return count ? sum / count : 0;
+      return count ? sum / count : 0; // 0 black, 255 white
     }
 
     btnGen.addEventListener('click', () => {
@@ -327,9 +324,8 @@
           const density = parseInt(densInput.value, 10);
           const mode = modeSelect.value;
           const fontFam = fontSelect.value;
-          const threshold = parseInt(bwThreshold.value, 10); // 0..255
+          const threshold = parseInt(bwThreshold.value, 10); // 0 (white) to 255 (black)
 
-          // Apply font to document and canvas
           document.documentElement.style.setProperty('--body-font', fontFam + ', serif');
           mc.font = `${fSize}px '${fontFam}'`;
           mc.textAlign = 'center';
@@ -338,65 +334,74 @@
           mc.fillStyle = 'white'; mc.fillRect(0, 0, w * scale, h * scale);
           for (let yy = 0; yy < h * scale; yy += cell) {
             for (let xx = 0; xx < w * scale; xx += cell) {
-              const m = avgBrightness(pixels, xx, yy, cell, w * scale, h * scale); // 0 (black) to 255 (white)
-              let draw = true;
-              let useAlpha = true;
-              let fillBlack = false;
+              const m = avgBrightness(pixels, xx, yy, cell, w * scale, h * scale); // 0 black,255 white
+              const brightnessInv = 255 - m; // now 0 = white, 255 = black
 
               if (mode === 'BW') {
-                // threshold: user chooses 0 white -> 255 black; we show content where avg > threshold
-                if (m <= threshold) {
-                  draw = false;
-                } else {
-                  if (blackMode) {
-                    // solid black, no blending
-                    useAlpha = false;
-                    fillBlack = true;
-                  } else {
-                    // blending like grayscale for those above threshold
-                    useAlpha = true;
+                if (brightnessInv < threshold) {
+                  // below threshold: solid black text (no blending)
+                  for (let i = 0; i < density; i++) {
+                    const dx = (Math.random() * 2 - 1) * jig;
+                    const dy = (Math.random() * 2 - 1) * jig;
+                    const text = words
+                      ? words[Math.floor(Math.random() * words.length)]
+                      : String((Math.random() * 10 | 0) + 1);
+                    mc.save();
+                    mc.globalAlpha = 1;
+                    mc.fillStyle = '#000';
+                    mc.fillText(text, xx + cell / 2 + dx, yy + cell / 2 + dy);
+                    mc.restore();
                   }
+                  continue;
                 }
-              }
-
-              if (mode === 'Grayscale') {
-                // always draw, with blending based on brightness
-                draw = true;
-              }
-
-              if (!draw) continue;
-
-              for (let i = 0; i < density; i++) {
-                const dx = (Math.random() * 2 - 1) * jig;
-                const dy = (Math.random() * 2 - 1) * jig;
-                const text = words
-                  ? words[Math.floor(Math.random() * words.length)]
-                  : String((Math.random() * 10 | 0) + 1);
-
-                // Save and configure alpha/fill
-                mc.save();
-                if (mode === 'Grayscale') {
-                  // grayscale: darker areas produce stronger text (inverse of brightness)
-                  const alpha = 1 - (m / 255);
-                  mc.globalAlpha = alpha;
-                  mc.fillStyle = '#000';
-                } else if (mode === 'BW') {
-                  if (fillBlack) {
+                // brightnessInv >= threshold: show content (blending unless blackMode)
+                for (let i = 0; i < density; i++) {
+                  const dx = (Math.random() * 2 - 1) * jig;
+                  const dy = (Math.random() * 2 - 1) * jig;
+                  const text = words
+                    ? words[Math.floor(Math.random() * words.length)]
+                    : String((Math.random() * 10 | 0) + 1);
+                  mc.save();
+                  if (blackMode) {
                     mc.globalAlpha = 1;
                     mc.fillStyle = '#000';
                   } else {
-                    // blending like grayscale but only for above-threshold pixels
-                    const alpha = 1 - (m / 255);
+                    const alpha = brightnessInv / 255;
                     mc.globalAlpha = alpha;
                     mc.fillStyle = '#000';
                   }
-                } else {
+                  mc.fillText(text, xx + cell / 2 + dx, yy + cell / 2 + dy);
+                  mc.restore();
+                }
+              } else if (mode === 'Grayscale') {
+                // grayscale: alpha by inverted brightness
+                for (let i = 0; i < density; i++) {
+                  const dx = (Math.random() * 2 - 1) * jig;
+                  const dy = (Math.random() * 2 - 1) * jig;
+                  const text = words
+                    ? words[Math.floor(Math.random() * words.length)]
+                    : String((Math.random() * 10 | 0) + 1);
+                  mc.save();
+                  const alpha = brightnessInv / 255;
+                  mc.globalAlpha = alpha;
+                  mc.fillStyle = '#000';
+                  mc.fillText(text, xx + cell / 2 + dx, yy + cell / 2 + dy);
+                  mc.restore();
+                }
+              } else {
+                // fallback: direct brightness-based text color
+                for (let i = 0; i < density; i++) {
+                  const dx = (Math.random() * 2 - 1) * jig;
+                  const dy = (Math.random() * 2 - 1) * jig;
+                  const text = words
+                    ? words[Math.floor(Math.random() * words.length)]
+                    : String((Math.random() * 10 | 0) + 1);
+                  mc.save();
                   mc.globalAlpha = 1;
                   mc.fillStyle = `rgb(${m|0},${m|0},${m|0})`;
+                  mc.fillText(text, xx + cell / 2 + dx, yy + cell / 2 + dy);
+                  mc.restore();
                 }
-
-                mc.fillText(text, xx + cell / 2 + dx, yy + cell / 2 + dy);
-                mc.restore();
               }
             }
           }
@@ -416,7 +421,7 @@
       link.click();
     });
 
-    // Initialize display state
+    // initialize UI state
     modeSelect.dispatchEvent(new Event('change'));
     contentType.dispatchEvent(new Event('change'));
   </script>
